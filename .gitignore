@@ -4,4 +4,6 @@ dist
 *.local
 .env
 .env.*
-luffy-overlay/voice-cache/
+luffy-overlay/
+Avvia Luffy.bat
+luffy.html
