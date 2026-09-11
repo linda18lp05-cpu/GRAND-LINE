@@ -642,10 +642,22 @@ export function mountCampaign({ sfx, api, onExit, onWidgetChange, onParkDesktop 
     return crewEl.querySelector(`[data-crew="${id}"]`);
   }
 
-  function origin(id) {
+  function origin(id, kind) {
     const el = fighterEl(id);
-    if (!el) return { x: innerWidth / 2, y: innerHeight - 40 };
+    if (!el) return { x: innerWidth / 2, y: innerHeight - 28 };
     const r = el.getBoundingClientRect();
+    if (kind === "stretch") {
+      return {
+        x: r.left + r.width * 0.42,
+        y: r.top + r.height * 0.38,
+      };
+    }
+    if (kind === "slash") {
+      return {
+        x: r.left + r.width * 0.52,
+        y: r.top + r.height * 0.18,
+      };
+    }
     return { x: r.left + r.width * 0.5, y: r.top + r.height * 0.28 };
   }
 
@@ -729,6 +741,8 @@ export function mountCampaign({ sfx, api, onExit, onWidgetChange, onParkDesktop 
     if (screen !== "playing" || !run) return;
     const f = run.files.find((x) => x.uid === id);
     if (!f || f.eaten) return;
+    const threatened = run.attacks.some((a) => a.alive && a.targetId === id);
+    if (!threatened) return;
     cancelAttacksOn(id);
     f.eaten = "saved";
     run.saved += 1;
@@ -754,11 +768,16 @@ export function mountCampaign({ sfx, api, onExit, onWidgetChange, onParkDesktop 
     run.combo = 0;
     const el = fruitEl(id);
     if (el) {
-      const o = origin(mate.id);
-      el.style.setProperty("--mx", o.x + "px");
-      el.style.setProperty("--my", o.y + "px");
-      el.classList.add("eaten");
-      setTimeout(() => el.remove(), 380);
+      if (mate.kind === "slash") {
+        el.classList.add("sliced");
+        setTimeout(() => el.remove(), 420);
+      } else {
+        const o = origin(mate.id, mate.kind);
+        el.style.setProperty("--mx", o.x + "px");
+        el.style.setProperty("--my", o.y + "px");
+        el.classList.add("eaten");
+        setTimeout(() => el.remove(), 380);
+      }
     }
     sounds.chomp();
     speech(mate.shout.replace("!", "") + " ...umpfh!");
@@ -812,10 +831,10 @@ export function mountCampaign({ sfx, api, onExit, onWidgetChange, onParkDesktop 
     if (!targetId) return;
     const dest = fruitCenter(targetId);
     if (!dest) return;
-    const from = origin(mate.id);
+    const from = origin(mate.id, mate.kind);
     const speed = run.level.speed;
     const durMap = {
-      stretch: 1.85,
+      stretch: 2.15,
       slash: 0.95,
       bolt: 1.05,
       shot: 1.65,
@@ -852,43 +871,184 @@ export function mountCampaign({ sfx, api, onExit, onWidgetChange, onParkDesktop 
     speech(mate.shout);
   }
 
-  function drawStretch(from, to, k) {
-    const t = 1 - Math.pow(1 - k, 2);
-    const end = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
-    const ctrl = {
-      x: (from.x + end.x) / 2,
-      y: (from.y + end.y) / 2 + Math.sin(t * Math.PI) * 36,
+  function bezierPoint(a, c, b, t) {
+    const u = 1 - t;
+    return {
+      x: u * u * a.x + 2 * u * t * c.x + t * t * b.x,
+      y: u * u * a.y + 2 * u * t * c.y + t * t * b.y,
     };
-    ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
-    ctx.quadraticCurveTo(ctrl.x, ctrl.y, end.x, end.y);
-    ctx.strokeStyle = "#e39b6a";
-    ctx.lineWidth = 18;
-    ctx.lineCap = "round";
-    ctx.stroke();
+  }
+
+  function bezierAngle(a, c, b, t) {
+    const d = 0.02;
+    const p0 = bezierPoint(a, c, b, Math.max(0, t - d));
+    const p1 = bezierPoint(a, c, b, Math.min(1, t + d));
+    return Math.atan2(p1.y - p0.y, p1.x - p0.x);
+  }
+
+  function rubberPath(from, to, k) {
+    const t = 1 - Math.pow(1 - Math.min(1, k), 1.55);
+    const end = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
+    const dist = Math.hypot(to.x - from.x, to.y - from.y);
+    const sag = Math.sin(t * Math.PI) * Math.min(130, dist * 0.32);
+    const side = to.x >= from.x ? -72 : 72;
+    const ctrl = {
+      x: from.x + side * (0.55 + (1 - t) * 0.7),
+      y: from.y - 24 + sag * 0.35,
+    };
+    return { end, ctrl, t };
+  }
+
+  function drawLuffyFist(x, y, ang, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(ang);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = "#f0b27a";
     ctx.strokeStyle = "#b56a3e";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.ellipse(10, 0, 16, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    for (let i = 0; i < 4; i++) {
+      const fy = -10 + i * 6.6;
+      ctx.beginPath();
+      ctx.ellipse(22, fy, 7.5, 4.2, 0.15, 0, Math.PI * 2);
+      ctx.fillStyle = "#e39b6a";
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.ellipse(6, 14, 7, 5, -0.6, 0, Math.PI * 2);
+    ctx.fillStyle = "#f0b27a";
+    ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(end.x, end.y, 16, 0, Math.PI * 2);
-    ctx.fillStyle = "#e39b6a";
+    ctx.arc(-6, 0, 8, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawStretch(from, to, k) {
+    const { end, ctrl, t } = rubberPath(from, to, k);
+    const steps = 28;
+    const wristT = 0.86;
+    const pts = [];
+    for (let i = 0; i <= steps; i++) {
+      const p = (i / steps) * wristT;
+      const pt = bezierPoint(from, ctrl, end, p);
+      const ang = bezierAngle(from, ctrl, end, p);
+      const w = 30 - 14 * (p / wristT) + Math.sin(p * 18 + t * 6) * 1.6;
+      pts.push({ x: pt.x, y: pt.y, ang, w: Math.max(10, w) });
+    }
+    const wrist = pts[pts.length - 1];
+    ctx.save();
+    ctx.beginPath();
+    pts.forEach((pt, i) => {
+      const nx = Math.cos(pt.ang + Math.PI / 2);
+      const ny = Math.sin(pt.ang + Math.PI / 2);
+      const x = pt.x + nx * pt.w / 2;
+      const y = pt.y + ny * pt.w / 2;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    for (let i = pts.length - 1; i >= 0; i--) {
+      const nx = Math.cos(pts[i].ang + Math.PI / 2);
+      const ny = Math.sin(pts[i].ang + Math.PI / 2);
+      ctx.lineTo(pts[i].x - nx * pts[i].w / 2, pts[i].y - ny * pts[i].w / 2);
+    }
+    ctx.closePath();
+    ctx.shadowColor = "rgba(0,0,0,.32)";
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 4;
+    ctx.fillStyle = "#e8a56f";
+    ctx.fill();
+    ctx.shadowColor = "transparent";
+    ctx.strokeStyle = "#b56a3e";
+    ctx.lineWidth = 2.4;
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    ctx.beginPath();
+    pts.forEach((pt, i) => {
+      const nx = Math.cos(pt.ang + Math.PI / 2);
+      const ny = Math.sin(pt.ang + Math.PI / 2);
+      const x = pt.x - nx * pt.w * 0.22;
+      const y = pt.y - ny * pt.w * 0.22;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = "rgba(255, 220, 180, .55)";
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    const rings = 7;
+    for (let i = 1; i < rings; i++) {
+      const p = (i / rings) * wristT;
+      const pt = bezierPoint(from, ctrl, end, p);
+      const ang = bezierAngle(from, ctrl, end, p);
+      const w = 28 - 12 * (p / wristT);
+      ctx.beginPath();
+      ctx.ellipse(pt.x, pt.y, w * 0.22, w * 0.52, ang, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(139, 74, 42, .45)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+    drawLuffyFist(wrist.x, wrist.y, wrist.ang, 0.92 + t * 0.18);
     return end;
   }
 
   function drawSlash(from, to, k) {
-    const t = Math.min(1, k * 1.4);
-    for (let i = 0; i < 3; i++) {
-      const o = (i - 1) * 16;
-      ctx.beginPath();
-      ctx.moveTo(from.x + o, from.y);
-      ctx.lineTo(from.x + (to.x - from.x) * t + o, from.y + (to.y - from.y) * t);
-      ctx.strokeStyle = i === 1 ? "#dcedc8" : "#81c784";
-      ctx.lineWidth = 6 - i;
+    const t = Math.min(1, k * 1.28);
+    const reach = {
+      x: from.x + (to.x - from.x) * t,
+      y: from.y + (to.y - from.y) * t,
+    };
+    const blades = [
+      { off: -20, ang: -0.62, color: "#dcedc8" },
+      { off: 0, ang: 0.08, color: "#fffde7" },
+      { off: 18, ang: 0.7, color: "#81c784" },
+    ];
+    blades.forEach((b, i) => {
+      ctx.save();
+      ctx.strokeStyle = b.color;
       ctx.lineCap = "round";
+      ctx.globalAlpha = 0.55 + t * 0.45;
+      ctx.lineWidth = 7 - i;
+      ctx.beginPath();
+      ctx.moveTo(from.x + b.off * 0.35, from.y);
+      ctx.lineTo(reach.x + b.off, reach.y);
       ctx.stroke();
+      ctx.restore();
+    });
+    const cut = Math.max(0, (t - 0.42) / 0.58);
+    if (cut > 0) {
+      blades.forEach((b) => {
+        const len = 18 + cut * 58;
+        ctx.save();
+        ctx.translate(to.x, to.y);
+        ctx.rotate(b.ang);
+        ctx.strokeStyle = b.color;
+        ctx.lineCap = "round";
+        ctx.shadowColor = "#c5e1a5";
+        ctx.shadowBlur = 12;
+        ctx.lineWidth = 5;
+        ctx.globalAlpha = cut;
+        ctx.beginPath();
+        ctx.moveTo(-len, b.off * 0.12);
+        ctx.lineTo(len, b.off * 0.12);
+        ctx.stroke();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-len * 0.7, b.off * 0.12);
+        ctx.lineTo(len * 0.7, b.off * 0.12);
+        ctx.stroke();
+        ctx.restore();
+      });
     }
-    return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
+    return reach;
   }
 
   function drawBolt(from, to, k) {
@@ -1065,6 +1225,10 @@ export function mountCampaign({ sfx, api, onExit, onWidgetChange, onParkDesktop 
         }
         resizeFx();
         ctx.clearRect(0, 0, fx.width, fx.height);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, fx.width, Math.max(80, fx.height - Math.round(fx.height * 0.155)));
+        ctx.clip();
         const chopper = fighterEl("chopper");
         if (chopper && !run.attacks.some((a) => a.alive && a.kind === "hop")) {
           chopper.style.transform = "";
@@ -1077,7 +1241,7 @@ export function mountCampaign({ sfx, api, onExit, onWidgetChange, onParkDesktop 
             a.alive = false;
             return;
           }
-          a.from = origin(a.fighterId);
+          a.from = origin(a.fighterId, a.kind);
           const k = Math.min(1, a.t / a.dur);
           const draw = drawers[a.kind] || drawStretch;
           a.tip = draw(a.from, dest, k);
@@ -1093,6 +1257,7 @@ export function mountCampaign({ sfx, api, onExit, onWidgetChange, onParkDesktop 
           }
         });
         run.attacks = run.attacks.filter((a) => a.alive || a.t < a.dur + 0.2);
+        ctx.restore();
         syncHits();
         updateHud();
       }
@@ -1140,7 +1305,7 @@ export function mountCampaign({ sfx, api, onExit, onWidgetChange, onParkDesktop 
       renderCrew();
       hitsEl.innerHTML = "";
       updateHud();
-      speech("Salva i frutti prima che la ciurma li divori!");
+      speech("Clicca solo i frutti che stanno per prendere!");
       showScreen("playing");
       sounds.start();
     }, 1600);

@@ -551,12 +551,13 @@
       padding: 2px 8px 8px;
       gap: 3px;
     }
-    #campMenu .camp-title {
-      font-size: clamp(22px, 3.8vw, 42px);
-    }
-    #campMenu .camp-sub {
-      font-size: 11px;
-      padding: 3px 10px;
+    #campMenu .camp-title,
+    #campMenu .menu-banner {
+      font-size: clamp(56px, 11vw, 118px);
+      letter-spacing: .06em;
+      padding: 10px 8px 6px;
+      line-height: .82;
+      text-align: center;
     }
     #campMenu .pirate-label {
       flex-direction: row;
@@ -1098,10 +1099,20 @@
       position: absolute;
       inset: 0;
     }
-    #campFx { pointer-events: none; z-index: 4; }
+    #campFx { pointer-events: none; z-index: 6; }
     #campHits, #campFruits { pointer-events: none; }
-    .camp-fruit, .atk-hit { pointer-events: auto; }
-    #campHits { z-index: 6; }
+    .atk-hit { pointer-events: auto; }
+    #campFruits .camp-fruit {
+      pointer-events: none;
+      cursor: default;
+      filter: saturate(.75) brightness(.92);
+    }
+    #campFruits .camp-fruit.danger {
+      pointer-events: auto;
+      cursor: pointer;
+      filter: none;
+    }
+    #campHits { z-index: 7; }
     #campFruits { z-index: 5; }
     .atk-hit {
       position: absolute;
@@ -1121,7 +1132,27 @@
       gap: 4px;
       padding: 0 8px 2px;
       pointer-events: none;
-      z-index: 3;
+      z-index: 20;
+    }
+    .fruit.sliced {
+      pointer-events: none;
+      animation: slicefruit .42s ease forwards;
+    }
+    .fruit.sliced::after {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: 48%;
+      height: 3px;
+      background: #fffde7;
+      box-shadow: 0 0 10px #c5e1a5;
+      transform: rotate(-28deg);
+    }
+    @keyframes slicefruit {
+      0% { transform: scale(1); filter: brightness(1); }
+      22% { transform: scale(1.14); filter: brightness(2.4) drop-shadow(0 0 14px #dcedc8); }
+      100% { transform: scale(.15) rotate(28deg); opacity: 0; filter: brightness(3); }
     }
     .fighter {
       pointer-events: auto;
@@ -1314,15 +1345,7 @@
       </div>
     </section>
     <section id="campMenu" class="camp-screen">
-      <div class="menu-masthead">
-        <span class="menu-hat" aria-hidden="true"></span>
-        <div class="menu-titles">
-          <p class="menu-kicker">STRAW HAT PIRATES</p>
-          <h1 class="camp-title">GRAND LINE</h1>
-        </div>
-        <span class="menu-compass" aria-hidden="true"></span>
-      </div>
-      <p class="camp-sub">Log Pose: a ogni isola un mugiwara in più. Salva i frutti del diavolo e lascia il tuo nome!</p>
+      <h1 class="camp-title menu-banner">GRAND LINE</h1>
       <label class="pirate-label">Nome sul Jolly Roger
         <input id="pirateName" maxlength="16" placeholder="Nakama" autocomplete="off" />
       </label>
@@ -1380,6 +1403,6 @@
   <button id="callBtn" type="button" data-hit="1" title="Chiama Luffy">
     <img id="callHat" alt="Cappello di Luffy" src="assets/luffy-hat.png" />
   </button>
-  <script type="module" src="./game.js?v=47"></script>
+  <script type="module" src="./game.js?v=49"></script>
 </body>
 </html>

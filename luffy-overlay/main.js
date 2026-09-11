@@ -352,7 +352,7 @@ function createWindow() {
   win.setAlwaysOnTop(true, "screen-saver");
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.setIgnoreMouseEvents(true, { forward: true });
-  win.loadFile(path.join(__dirname, "overlay.html"), { query: { v: "47" } });
+  win.loadFile(path.join(__dirname, "overlay.html"), { query: { v: "49" } });
   win.webContents.on("before-input-event", (_e, input) => {
     if (input.type === "keyDown" && input.key === "Escape") {
       win.webContents.send("force-hide");

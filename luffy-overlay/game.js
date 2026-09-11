@@ -1,5 +1,5 @@
 import { createSfx } from "./audio.js";
-import { mountCampaign } from "./campaign.js?v=47";
+import { mountCampaign } from "./campaign.js?v=49";
 
 const ROUND_S = 60;
 const MAX_EATEN = 10;
