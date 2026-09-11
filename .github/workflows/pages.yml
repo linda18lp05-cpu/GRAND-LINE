@@ -1,4 +1,4 @@
-name: Publish game
+name: Publish Grand Line
 
 on:
   push:
@@ -18,15 +18,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run build
+      - name: Prepare static site
+        run: |
+          mkdir -p site
+          cp -R luffy-overlay/. site/
+          cp site/overlay.html site/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
 
   deploy:
     needs: build
