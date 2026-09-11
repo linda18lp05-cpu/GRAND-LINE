@@ -1,9 +1,8 @@
-node_modules
+﻿node_modules
 dist
 .DS_Store
 *.local
 .env
 .env.*
-luffy-overlay/
-Avvia Luffy.bat
-luffy.html
+luffy-overlay/voice-cache/
+luffy-overlay/node_modules/
